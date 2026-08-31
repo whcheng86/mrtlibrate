@@ -89,23 +89,96 @@ function MapReveal({from,to,result}){
   useEffect(()=>{
     const map=mapRef.current;if(!map||!result)return;
     const layers=[];
-    const actual=L.polyline([[from.lat,from.lon],[to.lat,to.lon]],{weight:5,opacity:.95}).addTo(map);
+    const actual=L.polyline([[from.lat,from.lon],[to.lat,to.lon]],{color:'#4bd36b',weight:5,opacity:.95}).addTo(map);
     const guessEnd=destinationPoint(from,result.guessBearing,result.guessDistance);
-    const guess=L.polyline([[from.lat,from.lon],guessEnd],{weight:3,opacity:.85,dashArray:'8 9'}).addTo(map);
+    const guess=L.polyline([[from.lat,from.lon],guessEnd],{color:'#f2b84b',weight:3,opacity:.95,dashArray:'8 9'}).addTo(map);
+    const guessEndpoint=L.circleMarker(guessEnd,{radius:7,color:'#f2b84b',fillColor:'#f2b84b',fillOpacity:1,weight:2}).addTo(map);
     const a=L.circleMarker([from.lat,from.lon],{radius:8,weight:3,fillOpacity:1}).addTo(map);
     const b=L.circleMarker([to.lat,to.lon],{radius:8,weight:3,fillOpacity:1}).addTo(map);
     a.bindTooltip(`${from.name} · ${from.codes}`,{direction:'top'});b.bindTooltip(`${to.name} · ${to.codes}`,{direction:'top'});
-    layers.push(actual,guess,a,b);
+    layers.push(actual,guess,guessEndpoint,a,b);
     map.fitBounds(L.featureGroup(layers).getBounds().pad(.22),{animate:true,duration:.6});
     return()=>layers.forEach(x=>map.removeLayer(x));
   },[from,to,result]);
-  return <div className="mapWrap"><div ref={ref} className="map"/><div className="mapLegend"><span><i className="legendActual"/> Actual route</span><span><i className="legendGuess"/> Your guessed route</span></div></div>;
+  return <div className="mapWrap"><div ref={ref} className="map"/><div className="mapLegend"><span><i className="legendActual"/> Correct route</span><span><i className="legendGuess"/> Your guess</span><span><i className="legendEndpoint"/> Guess endpoint</span></div></div>;
 }
 
 function loadDay(date){
   try{return JSON.parse(localStorage.getItem(`mrt-bearings-${date}`)||'{}')}catch{return {}}
 }
 function saveDay(date,data){localStorage.setItem(`mrt-bearings-${date}`,JSON.stringify(data))}
+
+function roundEmoji(score){
+  if(score>=95)return '🟢';
+  if(score>=90)return '🟢';
+  if(score>=80)return '🟡';
+  if(score>=70)return '🟠';
+  if(score>=50)return '🔴';
+  return '💀';
+}
+function displayDate(date){
+  return new Date(`${date}T12:00:00+08:00`).toLocaleDateString('en-SG',{day:'2-digit',month:'short',year:'numeric',timeZone:'Asia/Singapore'});
+}
+function streakForDay(date, completed){
+  if(Object.keys(completed).length<TOTAL_ROUNDS)return 0;
+  let streak=1, d=new Date(`${date}T12:00:00+08:00`);
+  while(true){
+    d.setDate(d.getDate()-1);
+    const prev=d.toLocaleDateString('en-CA',{timeZone:'Asia/Singapore'});
+    try{
+      const x=JSON.parse(localStorage.getItem(`mrt-bearings-${prev}`)||'{}');
+      if(Object.keys(x.completed||{}).length>=TOTAL_ROUNDS)streak++;else break;
+    }catch{break}
+  }
+  return streak;
+}
+
+function DailyResults({date, rounds, total, streak, onReplay}){
+  const shareText=`🚇 MRTlibrate\n📅 ${displayDate(date)} · Daily Challenge\n\n🔥 ${streak} DAY STREAK\n\n🏆 ${total}/500\n\n${rounds.map((r,i)=>`${roundEmoji(r.total)} ${r.total}`).join('  ')}\n\nCan you beat me?\nmrtlibrate.com`;
+  const [copied,setCopied]=useState(false);
+  async function share(){
+    try{
+      if(navigator.share) await navigator.share({title:'MRTlibrate',text:shareText});
+      else {await navigator.clipboard.writeText(shareText);setCopied(true);setTimeout(()=>setCopied(false),1500)}
+    }catch{}
+  }
+  return <main className="resultsPage">
+    <header><div className="brand"><span className="dot"/> MRTlibrate</div><div className="daily">DAILY RESULTS</div><div className="progress">{rounds.map((r,i)=><i key={i} className="done"/>)}</div></header>
+    <section className="resultsHero"><p className="eyebrow">CHALLENGE COMPLETE · {displayDate(date)}</p><h1>{total}<small>/500</small></h1><p>🔥 {streak} DAY STREAK</p></section>
+    <section className="resultCard">
+      <div className="shareHeader"><div><strong>🚇 MRTlibrate</strong><span>📅 {displayDate(date)} · Daily Challenge</span></div><b>{total}/500</b></div>
+      <div className="roundRows">{rounds.map((r,i)=><div className="roundRow" key={i}><span className="roundNo">{i+1}</span><span className="roundStations">{r.from.name} → {r.to.name}</span><strong>{roundEmoji(r.total)} {r.total}</strong></div>)}</div>
+      <div className="sharePrompt">🔥 {streak} DAY STREAK</div><div className="sharePrompt">Can you beat me?</div><div className="shareSite">mrtlibrate.com</div>
+    </section>
+    <div className="resultActions"><button onClick={share}>{copied?'COPIED!':'SHARE RESULT'} ↗</button><button className="secondary" onClick={onReplay}>REPLAY TODAY</button></div>
+    <section className="allRounds"><div className="sectionHeading"><h2>ALL 5 ROUNDS</h2><span>Correct routes in green · Your guesses in amber</span></div><MapRevealAll rounds={rounds}/></section>
+    <footer><span>5 ROUNDS · ONE DAILY CHALLENGE</span><span>143 MRT STATIONS · OPENSTREETMAP</span></footer>
+  </main>
+}
+
+function MapRevealAll({rounds}){
+  const ref=useRef(null),mapRef=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||mapRef.current)return;
+    const map=L.map(ref.current,{zoomControl:true}).setView([1.3521,103.8198],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+    mapRef.current=map;setTimeout(()=>map.invalidateSize(),50);return()=>{map.remove();mapRef.current=null};
+  },[]);
+  useEffect(()=>{
+    const map=mapRef.current;if(!map||!rounds.length)return;const layers=[],bounds=[];
+    rounds.forEach((r,i)=>{
+      const {from,to}=r, actual=L.polyline([[from.lat,from.lon],[to.lat,to.lon]],{color:'#4bd36b',weight:4,opacity:.9}).addTo(map);
+      const end=destinationPoint(from,r.guessBearing,r.guessDistance);
+      const guess=L.polyline([[from.lat,from.lon],end],{color:'#f2b84b',weight:3,opacity:.95,dashArray:'8 9'}).addTo(map);
+      const ep=L.circleMarker(end,{radius:6,color:'#f2b84b',fillColor:'#f2b84b',fillOpacity:1,weight:2}).addTo(map);
+      const a=L.circleMarker([from.lat,from.lon],{radius:7,color:'#fff',fillColor:'#111',fillOpacity:1,weight:2}).addTo(map);
+      const b=L.circleMarker([to.lat,to.lon],{radius:7,color:'#4bd36b',fillColor:'#4bd36b',fillOpacity:1,weight:2}).addTo(map);
+      actual.bindTooltip(`Round ${i+1}: ${from.name} → ${to.name}`);layers.push(actual,guess,ep,a,b);bounds.push([from.lat,from.lon],[to.lat,to.lon],end);
+    });
+    map.fitBounds(L.latLngBounds(bounds).pad(.15),{animate:true});return()=>layers.forEach(x=>map.removeLayer(x));
+  },[rounds]);
+  return <div className="mapWrap"><div ref={ref} className="map allRoundsMap"/><div className="mapLegend"><span><i className="legendActual"/> Correct route</span><span><i className="legendGuess"/> Your guess</span><span><i className="legendEndpoint"/> Guess endpoint</span></div></div>;
+}
 
 function App(){
   const date=useMemo(singaporeDate,[]);
@@ -138,13 +211,20 @@ function App(){
     const dErr=Math.abs(d-actualDistance),bErr=Math.min(Math.abs(b-actualBearing),360-Math.abs(b-actualBearing));
     const r={dErr,bErr,total:Math.round((scoreDistance(dErr)+scoreBearing(bErr))/2),guessDistance:d,guessBearing:b};
     const next={...day,completed:{...completed,[round]:r}};
-    saveDay(date,next);setDay(next);setShowResult(true);setJustSubmitted(true);
+    saveDay(date,next);
+    if(round===TOTAL_ROUNDS-1){
+      const streak=streakForDay(date,{...next.completed});
+      localStorage.setItem('mrtlibrate-streak',String(streak));
+    }
+    setDay(next);setShowResult(true);setJustSubmitted(true);
   }
   function nextRound(){if(round<TOTAL_ROUNDS-1){setRound(round+1)}else{window.scrollTo({top:0,behavior:'smooth'})}}
   const currentResult=showResult?result:null;
+  const completedRounds=Array.from({length:TOTAL_ROUNDS},(_,i)=>{const [a,b]=pairForRound(date,i);return completed[i]?{...completed[i],from:a,to:b}:null}).filter(Boolean);
+  if(finished) return <DailyResults date={date} rounds={completedRounds} total={totalScore} streak={streakForDay(date,completed)} onReplay={()=>{localStorage.removeItem(`mrt-bearings-${date}`);setDay({});setRound(0);setBearingGuess(0);setDistance(5);setShowResult(false)}}/>;
 
   return <main>
-    <header><div className="brand"><span className="dot"/> MRT BEARINGS</div><div className="daily">DAILY CHALLENGE <span>5 ROUNDS</span></div><div className="progress">{[0,1,2,3,4].map(i=><i key={i} className={completed[i]?'done':i===round?'current':''}/> )}</div></header>
+    <header><div className="brand"><span className="dot"/> MRTlibrate</div><div className="daily">DAILY CHALLENGE <span>5 ROUNDS</span></div><div className="progress">{[0,1,2,3,4].map(i=><i key={i} className={completed[i]?'done':i===round?'current':''}/> )}</div></header>
     <section className="hero compact"><div><p className="eyebrow">ROUND {round+1} OF {TOTAL_ROUNDS} · {date}</p><h1>How well do you know <em>Singapore?</em></h1><p className="sub">Guess the straight-line distance and initial compass bearing between these two MRT stations.</p></div><div className="dayScore"><span>TODAY</span><strong>{totalScore}</strong><small>/ 500</small></div></section>
 
     <section className="card challengeCard">
