@@ -91,8 +91,8 @@ function MapReveal({from,to,result}){
     const layers=[];
     const actual=L.polyline([[from.lat,from.lon],[to.lat,to.lon]],{color:'#4bd36b',weight:5,opacity:.95}).addTo(map);
     const guessEnd=destinationPoint(from,result.guessBearing,result.guessDistance);
-    const guess=L.polyline([[from.lat,from.lon],guessEnd],{color:'#f2b84b',weight:3,opacity:.95,dashArray:'8 9'}).addTo(map);
-    const guessEndpoint=L.circleMarker(guessEnd,{radius:7,color:'#f2b84b',fillColor:'#f2b84b',fillOpacity:1,weight:2}).addTo(map);
+    const guess=L.polyline([[from.lat,from.lon],guessEnd],{color:'#a855f7',weight:3,opacity:.95,dashArray:'8 9'}).addTo(map);
+    const guessEndpoint=L.circleMarker(guessEnd,{radius:7,color:'#a855f7',fillColor:'#a855f7',fillOpacity:1,weight:2}).addTo(map);
     const a=L.circleMarker([from.lat,from.lon],{radius:8,weight:3,fillOpacity:1}).addTo(map);
     const b=L.circleMarker([to.lat,to.lon],{radius:8,weight:3,fillOpacity:1}).addTo(map);
     a.bindTooltip(`${from.name} · ${from.codes}`,{direction:'top'});b.bindTooltip(`${to.name} · ${to.codes}`,{direction:'top'});
@@ -169,8 +169,8 @@ function MapRevealAll({rounds}){
     rounds.forEach((r,i)=>{
       const {from,to}=r, actual=L.polyline([[from.lat,from.lon],[to.lat,to.lon]],{color:'#4bd36b',weight:4,opacity:.9}).addTo(map);
       const end=destinationPoint(from,r.guessBearing,r.guessDistance);
-      const guess=L.polyline([[from.lat,from.lon],end],{color:'#f2b84b',weight:3,opacity:.95,dashArray:'8 9'}).addTo(map);
-      const ep=L.circleMarker(end,{radius:6,color:'#f2b84b',fillColor:'#f2b84b',fillOpacity:1,weight:2}).addTo(map);
+      const guess=L.polyline([[from.lat,from.lon],end],{color:'#a855f7',weight:3,opacity:.95,dashArray:'8 9'}).addTo(map);
+      const ep=L.circleMarker(end,{radius:6,color:'#a855f7',fillColor:'#a855f7',fillOpacity:1,weight:2}).addTo(map);
       const a=L.circleMarker([from.lat,from.lon],{radius:7,color:'#fff',fillColor:'#111',fillOpacity:1,weight:2}).addTo(map);
       const b=L.circleMarker([to.lat,to.lon],{radius:7,color:'#4bd36b',fillColor:'#4bd36b',fillOpacity:1,weight:2}).addTo(map);
       actual.bindTooltip(`Round ${i+1}: ${from.name} → ${to.name}`);layers.push(actual,guess,ep,a,b);bounds.push([from.lat,from.lon],[to.lat,to.lon],end);
