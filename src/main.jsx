@@ -134,7 +134,7 @@ function streakForDay(date, completed){
 }
 
 function DailyResults({date, rounds, total, streak, onReplay}){
-  const shareText=`🚇 MRTlibrate\n📅 ${displayDate(date)} · Daily Challenge\n\n🔥 ${streak} DAY STREAK\n\n🏆 ${total}/500\n\n${rounds.map((r,i)=>`${roundEmoji(r.total)} ${r.total}`).join('  ')}\n\nCan you beat me?\nmrtlibrate.com`;
+  const shareText=`🚇 MRTlibrate\n📅 ${displayDate(date)} · Daily Challenge\n\n🔥 ${streak} DAY STREAK\n\n🏆 ${total}/500\n\n${rounds.map((r,i)=>`${roundEmoji(r.total)} ${r.total}`).join('  ')}\n\nCan you beat me?\nhttps://whcheng86.github.io/mrtlibrate/`;
   const [copied,setCopied]=useState(false);
   async function share(){
     try{
