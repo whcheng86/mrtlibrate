@@ -65,13 +65,13 @@ function Compass({value,onChange,interactive=true,actual=null,guess=null}){
   </div>;
 }
 
-function DistanceSlider({value,onChange,actual=null,guess=null}){
+function DistanceSlider({value,onChange,actual=null,guess=null,disabled=false}){
   return <div className="distanceControl">
     <div className="distanceValue">{Number(value).toFixed(1)} <small>km</small></div>
     <div className="sliderWrap">
       {actual!==null && <div className="actualMarker" style={{left:`${Math.min(100,(actual/MAX_DISTANCE)*100)}%`}}><span>ACTUAL</span></div>}
       {guess!==null && <div className="guessMarker" style={{left:`${Math.min(100,(guess/MAX_DISTANCE)*100)}%`}}><span>YOUR GUESS</span></div>}
-      <input type="range" min="0.1" max={MAX_DISTANCE} step="0.1" value={value} onChange={e=>onChange(Number(e.target.value))}/>
+      <input type="range" min="0.1" max={MAX_DISTANCE} step="0.1" value={value} disabled={disabled} onChange={e=>onChange(Number(e.target.value))}/>
     </div>
     <div className="rangeLabels"><span>0.1 km</span><span>{MAX_DISTANCE} km</span></div>
   </div>;
@@ -133,6 +133,60 @@ function streakForDay(date, completed){
   return streak;
 }
 
+function RoundFiveResults({date,from,to,result,onFinal}){
+  return <main className="resultsPage">
+    <header>
+      <div className="brand"><span className="dot"/> MRTlibrate</div>
+      <div className="daily">ROUND 5 RESULT</div>
+      <div className="progress">{[0,1,2,3,4].map(i=><i key={i} className="done"/>)}</div>
+    </header>
+
+    <section className="resultsHero">
+      <p className="eyebrow">ROUND 5 COMPLETE · {displayDate(date)}</p>
+      <h1>{result.total}<small>/100</small></h1>
+      <p>{roundEmoji(result.total)} ROUND SCORE</p>
+    </section>
+
+    <section className="card challengeCard">
+      <div className="route">
+        <div><span>FROM</span><strong>{from.name}</strong><small>{from.codes}</small></div>
+        <div className="arrow">→</div>
+        <div className="right"><span>TO</span><strong>{to.name}</strong><small>{to.codes}</small></div>
+      </div>
+
+      <div className="resultsHead">
+        <div><span>ROUND SCORE</span><strong>{result.total}<small>/100</small></strong></div>
+        <div className="roundMessage">{result.total>=90?'Excellent!':result.total>=70?'Great guess!':'Good effort!'}</div>
+      </div>
+
+      <div className="resultVisuals">
+        <div className="resultPanel">
+          <div className="panelTitle">CORRECT BEARING <small>YOUR GUESS SHOWN IN PURPLE</small></div>
+          <Compass value={result.actualBearing ?? bearing(from,to)} actual={result.actualBearing ?? bearing(from,to)} guess={result.guessBearing} interactive={false}/>
+          <div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{Math.round(result.actualBearing ?? bearing(from,to))}°</strong><span className="legendDot guessDot"/> Your guess <strong>{Math.round(result.guessBearing)}°</strong></div>
+        </div>
+
+        <div className="resultPanel">
+          <div className="panelTitle">CORRECT DISTANCE <small>YOUR GUESS SHOWN IN PURPLE</small></div>
+          <DistanceSlider value={result.actualDistance ?? distanceKm(from,to)} actual={result.actualDistance ?? distanceKm(from,to)} guess={result.guessDistance} onChange={()=>{}} disabled/>
+          <div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{(result.actualDistance ?? distanceKm(from,to)).toFixed(2)} km</strong><span className="legendDot guessDot"/> Your guess <strong>{result.guessDistance.toFixed(1)} km</strong></div>
+        </div>
+      </div>
+
+      <MapReveal from={from} to={result.actualBearing!==undefined?{...to}:to} result={{...result,actualBearing:result.actualBearing ?? bearing(from,to),actualDistance:result.actualDistance ?? distanceKm(from,to)}}/>
+
+      <div className="resultGrid">
+        <div><span>DISTANCE ERROR</span><strong>{result.dErr.toFixed(2)} km</strong></div>
+        <div><span>BEARING ERROR</span><strong>{result.bErr.toFixed(0)}°</strong></div>
+      </div>
+
+      <button onClick={onFinal}>SEE FINAL RESULTS <span>→</span></button>
+    </section>
+
+    <footer><span>ROUND 5 OF 5 · FINAL ROUND</span><span>143 MRT STATIONS · OPENSTREETMAP</span></footer>
+  </main>;
+}
+
 function DailyResults({date, rounds, total, streak, onReplay}){
   const shareText=`🚇 MRTlibrate\n📅 ${displayDate(date)} · Daily Challenge\n\n🔥 ${streak} DAY STREAK\n\n🏆 ${total}/500\n\n${rounds.map((r,i)=>`${roundEmoji(r.total)} ${r.total}`).join('  ')}\n\nCan you beat me?\nhttps://whcheng86.github.io/mrtlibrate/`;
   const [copied,setCopied]=useState(false);
@@ -153,7 +207,7 @@ function DailyResults({date, rounds, total, streak, onReplay}){
     <div className="resultActions"><button onClick={share}>{copied?'COPIED!':'SHARE RESULT'} ↗</button><button className="secondary" onClick={onReplay}>REPLAY TODAY</button></div>
     <section className="allRounds"><div className="sectionHeading"><h2>ALL 5 ROUNDS</h2><span>Correct routes in green · Your guesses in purple</span></div><MapRevealAll rounds={rounds}/></section>
     <footer><span>5 ROUNDS · ONE DAILY CHALLENGE</span><span>143 MRT STATIONS · OPENSTREETMAP</span></footer>
-  </main>
+  </main>;
 }
 
 function MapRevealAll({rounds}){
@@ -189,17 +243,23 @@ function App(){
   const [bearingGuess,setBearingGuess]=useState(0);
   const [distance,setDistance]=useState(5);
   const [showResult,setShowResult]=useState(Boolean(completed[round]));
-  const [justSubmitted,setJustSubmitted]=useState(false);
+  const [showFinal,setShowFinal]=useState(Boolean(day.showFinal));
   const [from,to]=useMemo(()=>pairForRound(date,round),[date,round]);
   const actualDistance=distanceKm(from,to), actualBearing=bearing(from,to);
   const result=completed[round]||null;
 
   useEffect(()=>{
     const r=completed[round];
-    if(r){setBearingGuess(r.guessBearing);setDistance(r.guessDistance);setShowResult(true)}
-    else{setBearingGuess(0);setDistance(Math.min(10,Math.max(.1,Math.round(actualDistance/2*10)/10)));setShowResult(false)}
-    setJustSubmitted(false);
-  },[round]);
+    if(r){
+      setBearingGuess(r.guessBearing);
+      setDistance(r.guessDistance);
+      setShowResult(true);
+    }else{
+      setBearingGuess(0);
+      setDistance(Math.min(10,Math.max(.1,Math.round(actualDistance/2*10)/10)));
+      setShowResult(false);
+    }
+  },[round,day]);
 
   const totalScore=Object.values(completed).reduce((s,r)=>s+(r?.total||0),0);
   const finished=Object.keys(completed).length>=TOTAL_ROUNDS;
@@ -209,19 +269,76 @@ function App(){
     if(completed[round])return;
     const d=Number(distance),b=Number(bearingGuess);
     const dErr=Math.abs(d-actualDistance),bErr=Math.min(Math.abs(b-actualBearing),360-Math.abs(b-actualBearing));
-    const r={dErr,bErr,total:Math.round((scoreDistance(dErr)+scoreBearing(bErr))/2),guessDistance:d,guessBearing:b};
-    const next={...day,completed:{...completed,[round]:r}};
+    const r={
+      from,
+      to,
+      actualDistance,
+      actualBearing,
+      dErr,
+      bErr,
+      total:Math.round((scoreDistance(dErr)+scoreBearing(bErr))/2),
+      guessDistance:d,
+      guessBearing:b
+    };
+    const next={...day,completed:{...completed,[round]:r},showFinal:false};
     saveDay(date,next);
     if(round===TOTAL_ROUNDS-1){
       const streak=streakForDay(date,{...next.completed});
       localStorage.setItem('mrtlibrate-streak',String(streak));
     }
-    setDay(next);setShowResult(true);setJustSubmitted(true);
+    setDay(next);
+    setShowResult(true);
+    setShowFinal(false);
   }
-  function nextRound(){if(round<TOTAL_ROUNDS-1){setRound(round+1)}else{window.scrollTo({top:0,behavior:'smooth'})}}
+
+  function nextRound(){
+    if(round<TOTAL_ROUNDS-1){
+      setRound(round+1);
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+  }
+
+  function goToFinal(){
+    const next={...day,showFinal:true};
+    saveDay(date,next);
+    setDay(next);
+    setShowFinal(true);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
   const currentResult=showResult?result:null;
-  const completedRounds=Array.from({length:TOTAL_ROUNDS},(_,i)=>{const [a,b]=pairForRound(date,i);return completed[i]?{...completed[i],from:a,to:b}:null}).filter(Boolean);
-  if(finished) return <DailyResults date={date} rounds={completedRounds} total={totalScore} streak={streakForDay(date,completed)} onReplay={()=>{localStorage.removeItem(`mrt-bearings-${date}`);setDay({});setRound(0);setBearingGuess(0);setDistance(5);setShowResult(false)}}/>;
+  const completedRounds=Array.from({length:TOTAL_ROUNDS},(_,i)=>{
+    const [a,b]=pairForRound(date,i);
+    return completed[i]?{...completed[i],from:a,to:b}:null;
+  }).filter(Boolean);
+
+  if(finished && showFinal){
+    return <DailyResults
+      date={date}
+      rounds={completedRounds}
+      total={totalScore}
+      streak={streakForDay(date,completed)}
+      onReplay={()=>{
+        localStorage.removeItem(`mrt-bearings-${date}`);
+        setDay({});
+        setRound(0);
+        setBearingGuess(0);
+        setDistance(5);
+        setShowResult(false);
+        setShowFinal(false);
+      }}
+    />;
+  }
+
+  if(round===TOTAL_ROUNDS-1 && currentResult){
+    return <RoundFiveResults
+      date={date}
+      from={from}
+      to={to}
+      result={currentResult}
+      onFinal={goToFinal}
+    />;
+  }
 
   return <main>
     <header><div className="brand"><span className="dot"/> MRTlibrate</div><div className="daily">DAILY CHALLENGE <span>5 ROUNDS</span></div><div className="progress">{[0,1,2,3,4].map(i=><i key={i} className={completed[i]?'done':i===round?'current':''}/> )}</div></header>
@@ -239,14 +356,15 @@ function App(){
         <div className="resultsHead"><div><span>ROUND SCORE</span><strong>{currentResult.total}<small>/100</small></strong></div><div className="roundMessage">{currentResult.total>=90?'Excellent!':currentResult.total>=70?'Great guess!':'Good effort!'}</div></div>
         <div className="resultVisuals">
           <div className="resultPanel"><div className="panelTitle">CORRECT BEARING <small>YOUR GUESS SHOWN IN PURPLE</small></div><Compass value={actualBearing} actual={actualBearing} guess={currentResult.guessBearing} interactive={false}/><div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{Math.round(actualBearing)}°</strong><span className="legendDot guessDot"/> Your guess <strong>{Math.round(currentResult.guessBearing)}°</strong></div></div>
-          <div className="resultPanel"><div className="panelTitle">CORRECT DISTANCE <small>YOUR GUESS SHOWN IN PURPLE</small></div><DistanceSlider value={actualDistance} actual={actualDistance} guess={currentResult.guessDistance} onChange={()=>{}}/><div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{actualDistance.toFixed(2)} km</strong><span className="legendDot guessDot"/> Your guess <strong>{currentResult.guessDistance.toFixed(1)} km</strong></div></div>
+          <div className="resultPanel"><div className="panelTitle">CORRECT DISTANCE <small>YOUR GUESS SHOWN IN PURPLE</small></div><DistanceSlider value={actualDistance} actual={actualDistance} guess={currentResult.guessDistance} onChange={()=>{}} disabled/><div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{actualDistance.toFixed(2)} km</strong><span className="legendDot guessDot"/> Your guess <strong>{currentResult.guessDistance.toFixed(1)} km</strong></div></div>
         </div>
         <MapReveal from={from} to={to} result={currentResult}/>
         <div className="resultGrid"><div><span>DISTANCE ERROR</span><strong>{currentResult.dErr.toFixed(2)} km</strong></div><div><span>BEARING ERROR</span><strong>{currentResult.bErr.toFixed(0)}°</strong></div></div>
-        {round<TOTAL_ROUNDS-1 ? <button onClick={nextRound}>NEXT ROUND <span>→</span></button> : <div className="finalDay"><strong>{finished?'DAILY COMPLETE':'DAY COMPLETE'}</strong><span>{totalScore} / 500</span><small>Come back tomorrow for a new five-round challenge.</small></div>}
+        {round<TOTAL_ROUNDS-1 ? <button onClick={nextRound}>NEXT ROUND <span>→</span></button> : null}
       </>}
     </section>
     <footer><span>5 ROUNDS · ONE DAILY CHALLENGE</span><span>143 MRT STATIONS · OPENSTREETMAP</span></footer>
   </main>;
 }
+
 createRoot(document.getElementById('root')).render(<App/>);
