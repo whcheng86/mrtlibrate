@@ -151,7 +151,7 @@ function DailyResults({date, rounds, total, streak, onReplay}){
       <div className="sharePrompt">🔥 {streak} DAY STREAK</div><div className="sharePrompt">Can you beat me?</div><div className="shareSite">mrtlibrate.com</div>
     </section>
     <div className="resultActions"><button onClick={share}>{copied?'COPIED!':'SHARE RESULT'} ↗</button><button className="secondary" onClick={onReplay}>REPLAY TODAY</button></div>
-    <section className="allRounds"><div className="sectionHeading"><h2>ALL 5 ROUNDS</h2><span>Correct routes in green · Your guesses in amber</span></div><MapRevealAll rounds={rounds}/></section>
+    <section className="allRounds"><div className="sectionHeading"><h2>ALL 5 ROUNDS</h2><span>Correct routes in green · Your guesses in purple</span></div><MapRevealAll rounds={rounds}/></section>
     <footer><span>5 ROUNDS · ONE DAILY CHALLENGE</span><span>143 MRT STATIONS · OPENSTREETMAP</span></footer>
   </main>
 }
@@ -238,8 +238,8 @@ function App(){
       </form> : <>
         <div className="resultsHead"><div><span>ROUND SCORE</span><strong>{currentResult.total}<small>/100</small></strong></div><div className="roundMessage">{currentResult.total>=90?'Excellent!':currentResult.total>=70?'Great guess!':'Good effort!'}</div></div>
         <div className="resultVisuals">
-          <div className="resultPanel"><div className="panelTitle">CORRECT BEARING <small>YOUR GUESS SHOWN IN AMBER</small></div><Compass value={actualBearing} actual={actualBearing} guess={currentResult.guessBearing} interactive={false}/><div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{Math.round(actualBearing)}°</strong><span className="legendDot guessDot"/> Your guess <strong>{Math.round(currentResult.guessBearing)}°</strong></div></div>
-          <div className="resultPanel"><div className="panelTitle">CORRECT DISTANCE <small>YOUR GUESS SHOWN IN AMBER</small></div><DistanceSlider value={actualDistance} actual={actualDistance} guess={currentResult.guessDistance} onChange={()=>{}}/><div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{actualDistance.toFixed(2)} km</strong><span className="legendDot guessDot"/> Your guess <strong>{currentResult.guessDistance.toFixed(1)} km</strong></div></div>
+          <div className="resultPanel"><div className="panelTitle">CORRECT BEARING <small>YOUR GUESS SHOWN IN PURPLE</small></div><Compass value={actualBearing} actual={actualBearing} guess={currentResult.guessBearing} interactive={false}/><div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{Math.round(actualBearing)}°</strong><span className="legendDot guessDot"/> Your guess <strong>{Math.round(currentResult.guessBearing)}°</strong></div></div>
+          <div className="resultPanel"><div className="panelTitle">CORRECT DISTANCE <small>YOUR GUESS SHOWN IN PURPLE</small></div><DistanceSlider value={actualDistance} actual={actualDistance} guess={currentResult.guessDistance} onChange={()=>{}}/><div className="compareLine"><span className="legendDot actualDot"/> Actual <strong>{actualDistance.toFixed(2)} km</strong><span className="legendDot guessDot"/> Your guess <strong>{currentResult.guessDistance.toFixed(1)} km</strong></div></div>
         </div>
         <MapReveal from={from} to={to} result={currentResult}/>
         <div className="resultGrid"><div><span>DISTANCE ERROR</span><strong>{currentResult.dErr.toFixed(2)} km</strong></div><div><span>BEARING ERROR</span><strong>{currentResult.bErr.toFixed(0)}°</strong></div></div>
