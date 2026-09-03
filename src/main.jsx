@@ -28,12 +28,36 @@ function destinationPoint(start,bearingDeg,distance){
 }
 function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
 function singaporeDate(){return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Singapore'})}
-function pairForRound(date,round){
-  const h=hash(`${date}-round-${round}`);
-  const ai=h%STATIONS.length;
-  let bi=Math.floor(h/STATIONS.length)%STATIONS.length;
-  if(bi===ai) bi=(bi+17)%STATIONS.length;
-  return [STATIONS[ai],STATIONS[bi]];
+function seededRandom(seed){
+  let x=seed>>>0;
+  return function(){
+    x+=0x6D2B79F5;
+    let t=x;
+    t=Math.imul(t^(t>>>15),t|1);
+    t^=t+Math.imul(t^(t>>>7),t|61);
+    return ((t^(t>>>14))>>>0)/4294967296;
+  };
+}
+function shuffle(array,random){
+  const result=[...array];
+  for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
+function dailyPairs(date){
+  const random=seededRandom(hash(`mrtlibrate-${date}`));
+  const shuffled=shuffle(STATIONS,random);
+  const starts=shuffled.slice(0,TOTAL_ROUNDS);
+  return starts.map((start,index)=>{
+    const h=hash(`${date}-round-${index}`);
+    let endIndex=Math.floor(h/STATIONS.length)%STATIONS.length;
+    if(STATIONS[endIndex].code===start.code){
+      endIndex=(endIndex+1)%STATIONS.length;
+    }
+    return [start,STATIONS[endIndex]];
+  });
 }
 const scoreDistance=e=>Math.max(0,100-e*18);
 const scoreBearing=e=>Math.max(0,100-e*2);
@@ -235,6 +259,7 @@ function MapRevealAll({rounds}){
 }
 
 function App(){
+  useEffect(()=>{document.title='MRTlibrate';},[]);
   const date=useMemo(singaporeDate,[]);
   const [day,setDay]=useState(()=>loadDay(date));
   const completed=day.completed||{};
@@ -244,7 +269,8 @@ function App(){
   const [distance,setDistance]=useState(5);
   const [showResult,setShowResult]=useState(Boolean(completed[round]));
   const [showFinal,setShowFinal]=useState(Boolean(day.showFinal));
-  const [from,to]=useMemo(()=>pairForRound(date,round),[date,round]);
+  const dailyStationPairs=useMemo(()=>dailyPairs(date),[date]);
+  const [from,to]=dailyStationPairs[round];
   const actualDistance=distanceKm(from,to), actualBearing=bearing(from,to);
   const result=completed[round]||null;
 
@@ -308,7 +334,7 @@ function App(){
 
   const currentResult=showResult?result:null;
   const completedRounds=Array.from({length:TOTAL_ROUNDS},(_,i)=>{
-    const [a,b]=pairForRound(date,i);
+    const [a,b]=dailyStationPairs[i];
     return completed[i]?{...completed[i],from:a,to:b}:null;
   }).filter(Boolean);
 
