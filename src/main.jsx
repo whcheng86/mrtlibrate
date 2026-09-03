@@ -6,7 +6,7 @@ import './styles.css';
 import { STATIONS } from './stations';
 
 const TOTAL_ROUNDS = 5;
-const MAX_DISTANCE = 30;
+const MAX_DISTANCE = 40;
 const rad = d => d * Math.PI / 180;
 const deg = r => r * 180 / Math.PI;
 
@@ -282,7 +282,7 @@ function App(){
       setShowResult(true);
     }else{
       setBearingGuess(0);
-      setDistance(Math.min(10,Math.max(.1,Math.round(actualDistance/2*10)/10)));
+      setDistance(5);
       setShowResult(false);
     }
   },[round,day]);
